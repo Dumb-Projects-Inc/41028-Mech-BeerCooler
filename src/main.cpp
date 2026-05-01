@@ -1,25 +1,25 @@
 #include <Arduino.h>
-#include <DallasTemperature.h>
-#include <OneWire.h>
 #include "prov.h"
+#include <DS18B20.h>
 
-#define ONE_WIRE_GPIO 2
+#define TEMP_SENSOR_PIN 4
 
-OneWire oneWire(ONE_WIRE_GPIO);
-DallasTemperature sensors(&oneWire);
+DS18B20 tempSensor(TEMP_SENSOR_PIN);
 
 // put function declarations here:
 int myFunction(int, int);
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
-  sensors.begin();
+  tempSensor.begin();
+  tempSensor.setResolution(12);
 
   initWifi();
-
 }
 
-void loop() {
+void loop()
+{
   // put your main code here, to run repeatedly:
 }
 
