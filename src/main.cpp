@@ -1,18 +1,31 @@
 #include <Arduino.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+#define ONE_WIRE_GPIO 2
+
+OneWire oneWire(ONE_WIRE_GPIO);
+DallasTemperature sensors(&oneWire);
 
 // put function declarations here:
 int myFunction(int, int);
 
-void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+void setup()
+{
+  Serial.begin(115200);
+  sensors.begin();
+
+  Serial.print("Found sensors: ");
+  Serial.println(sensors.getDeviceCount());
 }
 
-void loop() {
+void loop()
+{
   // put your main code here, to run repeatedly:
 }
 
 // put function definitions here:
-int myFunction(int x, int y) {
+int myFunction(int x, int y)
+{
   return x + y;
 }
