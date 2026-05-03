@@ -1,10 +1,12 @@
 #include <Arduino.h>
 #include "prov.h"
-#include <DS18B20.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
-#define TEMP_SENSOR_PIN 4
+#define ONE_WIRE_BUS 4
 
-DS18B20 tempSensor(TEMP_SENSOR_PIN);
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
 
 // put function declarations here:
 int myFunction(int, int);
@@ -12,8 +14,7 @@ int myFunction(int, int);
 void setup()
 {
   Serial.begin(115200);
-  tempSensor.begin();
-  tempSensor.setResolution(12);
+  Serial.println("Hello world!");
 
   initWifi();
 }
