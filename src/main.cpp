@@ -2,6 +2,7 @@
 #include "prov.h"
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include "mqtt.h"
 
 #define ONE_WIRE_BUS 4
 
@@ -17,6 +18,7 @@ void setup()
   Serial.println("Hello world!");
 
   initWifi();
+  MQTT::init();
 }
 
 void loop()
