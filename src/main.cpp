@@ -58,10 +58,9 @@ static void runMotor(uint8_t pin, int speed, int durationMs)
   if (durationMs > 0)
   {
     delay(durationMs);
+    setMotorDuty(PWM_DUTY_IDLE);
+    Serial.println("Motor stopped.");
   }
-
-  setMotorDuty(PWM_DUTY_IDLE);
-  Serial.println("Motor stopped.");
 }
 
 static bool parseMotorCommand(const char *payload, int &speed, int &durationMs)
