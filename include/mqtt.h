@@ -11,6 +11,7 @@ namespace MQTT
     static constexpr const char *USERNAME = "tyyinxoxerhanedhac@fxavaj.com";
     static constexpr const char *PASSWORD = "DetteErVoresKodeTilEt12TalsProjekt";
     static constexpr const char *TOPIC_MOISTURE = "tyyinxoxerhanedhac@fxavaj.com/moisture";
+    static constexpr const char *TOPIC_TEMPERATURE = "tyyinxoxerhanedhac@fxavaj.com/temperature";
     static constexpr const char *TOPIC_COMMAND = "tyyinxoxerhanedhac@fxavaj.com/fan";
 
     static constexpr size_t MESSAGE_TOPIC_SIZE = 96;
@@ -159,6 +160,13 @@ namespace MQTT
         char payload[80];
         snprintf(payload, sizeof(payload), "{\"moisture\":%d,\"raw\":%d}", moisturePercent, rawValue);
         return publish(TOPIC_MOISTURE, payload, 1, false);
+    }
+
+    static bool publishTemperature(float temperatureC)
+    {
+        char payload[80];
+        snprintf(payload, sizeof(payload), "{\"temperature_c\":%.2f}", temperatureC);
+        return publish(TOPIC_TEMPERATURE, payload, 1, false);
     }
 
     static bool poll(Message &message, uint32_t timeoutMs = 0)
