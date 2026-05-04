@@ -12,7 +12,7 @@ namespace MQTT
     static constexpr const char *PASSWORD = "DetteErVoresKodeTilEt12TalsProjekt";
     static constexpr const char *TOPIC_MOISTURE = "tyyinxoxerhanedhac@fxavaj.com/moisture";
     static constexpr const char *TOPIC_TEMPERATURE = "tyyinxoxerhanedhac@fxavaj.com/temperature";
-    static constexpr const char *TOPIC_COMMAND = "tyyinxoxerhanedhac@fxavaj.com/fan";
+    static constexpr const char *TOPIC_COMMAND = "tyyinxoxerhanedhac@fxavaj.com/motor";
 
     static constexpr size_t MESSAGE_TOPIC_SIZE = 96;
     static constexpr size_t MESSAGE_PAYLOAD_SIZE = 128;
@@ -69,7 +69,13 @@ namespace MQTT
         {
         case MQTT_EVENT_CONNECTED:
             mqttConnected() = true; // overwrite the
-            esp_mqtt_client_subscribe(client, TOPIC_COMMAND, 0);
+        {
+            int msg_id = esp_mqtt_client_subscribe(client, TOPIC_COMMAND, 0);
+            Serial.print("MQTT connected. Subscribed to: ");
+            Serial.print(TOPIC_COMMAND);
+            Serial.print(" msg_id=");
+            Serial.println(msg_id);
+        }
             break;
         case MQTT_EVENT_DISCONNECTED:
             mqttConnected() = false;
@@ -77,8 +83,16 @@ namespace MQTT
         case MQTT_EVENT_DATA:
         {
             Message message = {};
+            // Copy topic and payload with explicit lengths
             safeCopy(message.topic, sizeof(message.topic), event->topic, event->topic_len);
             safeCopy(message.payload, sizeof(message.payload), event->data, event->data_len);
+
+            // Debug log so we can see raw incoming MQTT traffic
+            Serial.print("MQTT_EVENT_DATA topic='");
+            Serial.print(message.topic);
+            Serial.print("' payload='");
+            Serial.print(message.payload);
+            Serial.println("'");
 
             if (rxQueue() != nullptr)
             {
