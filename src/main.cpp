@@ -3,6 +3,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include "mqtt.h"
+#include "stepper.h"
 #include <cstdlib>
 #include <strings.h>
 
@@ -92,28 +93,83 @@ static bool parseMotorCommand(const char *payload, int &speed, int &durationMs)
   return true;
 }
 
+static bool parseStepperCommand(const char *payload, int &steps, int &speed)
+{
+  // Expected payload formats:
+  // - "STEPS"           -> move by steps, default speed
+  // - "STEPS,SPEED"     -> move by steps with custom speed (steps/sec)
+  // - Direction: negative steps = reverse
+
+  if (payload == nullptr || payload[0] == '\0')
+  {
+    return false;
+  }
+
+  int parsedSteps = 0;
+  int parsedSpeed = 0;
+  int parsedCount = sscanf(payload, "%d,%d", &parsedSteps, &parsedSpeed);
+  if (parsedCount < 1)
+  {
+    return false;
+  }
+
+  if (parsedCount == 1)
+  {
+    parsedSpeed = 500;  // Default speed
+  }
+
+  steps = parsedSteps;
+  speed = parsedSpeed;
+  return true;
+}
+
+static void handleStepperCommand(const char *payload)
+{
+  Serial.print("MQTT stepper command: ");
+  Serial.println(payload);
+
+  int steps = 0;
+  int speed = 0;
+  if (!parseStepperCommand(payload, steps, speed))
+  {
+    Serial.println("Unrecognized stepper command.");
+    return;
+  }
+
+  // Set speed first
+  Stepper::setSpeed(speed);
+
+  // Then move
+  Stepper::moveSteps(steps);
+}
+
 static void handleMqttMessage(const MQTT::Message &message)
 {
-  if (strcmp(message.topic, MQTT::TOPIC_COMMAND) != 0)
+  if (strcmp(message.topic, MQTT::TOPIC_COMMAND) == 0)
+  {
+    Serial.print("MQTT motor command: ");
+    Serial.println(message.payload);
+
+    int speed = 0;
+    int durationMs = 0;
+    if (!parseMotorCommand(message.payload, speed, durationMs))
+    {
+      Serial.println("Unrecognized motor command.");
+      return;
+    }
+
+    runMotor(PWM_PIN, speed, durationMs);
+  }
+  else if (strcmp(message.topic, MQTT::TOPIC_STEPPER_COMMAND) == 0)
+  {
+    handleStepperCommand(message.payload);
+  }
+  else
   {
     Serial.println("Received MQTT message for unrecognized topic:");
     Serial.print("Topic: ");    Serial.println(message.topic);
     Serial.print("Payload: ");  Serial.println(message.payload);
-    return;
   }
-
-  Serial.print("MQTT motor command: ");
-  Serial.println(message.payload);
-
-  int speed = 0;
-  int durationMs = 0;
-  if (!parseMotorCommand(message.payload, speed, durationMs))
-  {
-    Serial.println("Unrecognized motor command.");
-    return;
-  }
-
-  runMotor(PWM_PIN, speed, durationMs);
 }
 
 static void pollMqttCommands()
@@ -155,6 +211,8 @@ void setup()
   pinMode(PWM_PIN, OUTPUT);
   setMotorDuty(PWM_DUTY_IDLE);
 
+  Stepper::init();
+
   sensors.begin();
 
   int deviceCount = sensors.getDeviceCount();
@@ -175,6 +233,9 @@ void setup()
 void loop()
 {
   pollMqttCommands();
+
+  // Process stepper motor stepping
+  Stepper::run();
 
   unsigned long now = millis();
   if (now - lastTemperaturePublishMs >= TEMPERATURE_PUBLISH_INTERVAL_MS)

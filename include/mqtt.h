@@ -13,6 +13,7 @@ namespace MQTT
     static constexpr const char *TOPIC_MOISTURE = "tyyinxoxerhanedhac@fxavaj.com/moisture";
     static constexpr const char *TOPIC_TEMPERATURE = "tyyinxoxerhanedhac@fxavaj.com/temperature";
     static constexpr const char *TOPIC_COMMAND = "tyyinxoxerhanedhac@fxavaj.com/motor";
+    static constexpr const char *TOPIC_STEPPER_COMMAND = "tyyinxoxerhanedhac@fxavaj.com/stepper";
 
     static constexpr size_t MESSAGE_TOPIC_SIZE = 96;
     static constexpr size_t MESSAGE_PAYLOAD_SIZE = 128;
@@ -73,6 +74,12 @@ namespace MQTT
             int msg_id = esp_mqtt_client_subscribe(client, TOPIC_COMMAND, 0);
             Serial.print("MQTT connected. Subscribed to: ");
             Serial.print(TOPIC_COMMAND);
+            Serial.print(" msg_id=");
+            Serial.println(msg_id);
+            
+            msg_id = esp_mqtt_client_subscribe(client, TOPIC_STEPPER_COMMAND, 0);
+            Serial.print("Subscribed to: ");
+            Serial.print(TOPIC_STEPPER_COMMAND);
             Serial.print(" msg_id=");
             Serial.println(msg_id);
         }
