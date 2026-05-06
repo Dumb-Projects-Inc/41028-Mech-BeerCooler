@@ -6,10 +6,10 @@
 namespace Stepper
 {
     // L298N Motor Controller GPIO pins (interchangeable - modify here as needed)
-    static constexpr uint8_t IN1_PIN = 14;
-    static constexpr uint8_t IN2_PIN = 15;
-    static constexpr uint8_t IN3_PIN = 32;
-    static constexpr uint8_t IN4_PIN = 33;
+    static constexpr uint8_t IN1_PIN = 21;
+    static constexpr uint8_t IN2_PIN = 20;
+    static constexpr uint8_t IN3_PIN = 19;
+    static constexpr uint8_t IN4_PIN = 18;
 
     // Stepper motor parameters
     static constexpr float MAX_SPEED = 1000.0;        // steps per second
