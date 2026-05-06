@@ -11,13 +11,16 @@ public:
 
     void begin();
 
+    void requestTemperatures();
     float readCelsius(uint8_t index = 0);
+    float readLastCelsius(uint8_t index = 0);
 
     bool isConnected(uint8_t index = 0);
     uint8_t getDeviceCount();
 
     void setResolution(uint8_t resolution);
     uint8_t getResolution(uint8_t index = 0);
+    unsigned long conversionTimeMs(uint8_t index = 0);
 
 private:
     uint8_t _pin;

@@ -10,10 +10,11 @@ DS18B20::DS18B20(uint8_t pin)
 void DS18B20::begin()
 {
     _sensors.begin();
+    _sensors.setWaitForConversion(false);
     _hasBegun = true;
 }
 
-float DS18B20::readCelsius(uint8_t index)
+void DS18B20::requestTemperatures()
 {
     if (!_hasBegun)
     {
@@ -21,6 +22,14 @@ float DS18B20::readCelsius(uint8_t index)
     }
 
     _sensors.requestTemperatures();
+}
+
+float DS18B20::readLastCelsius(uint8_t index)
+{
+    if (!_hasBegun)
+    {
+        begin();
+    }
 
     float tempC = _sensors.getTempCByIndex(index);
 
@@ -30,6 +39,13 @@ float DS18B20::readCelsius(uint8_t index)
     }
 
     return tempC;
+}
+
+float DS18B20::readCelsius(uint8_t index)
+{
+    requestTemperatures();
+    delay(conversionTimeMs(index));
+    return readLastCelsius(index);
 }
 
 bool DS18B20::isConnected(uint8_t index)
@@ -89,4 +105,22 @@ uint8_t DS18B20::getResolution(uint8_t index)
     }
 
     return _sensors.getResolution(address);
+}
+
+unsigned long DS18B20::conversionTimeMs(uint8_t index)
+{
+    const uint8_t resolution = getResolution(index);
+
+    switch (resolution)
+    {
+    case 9:
+        return 94;
+    case 10:
+        return 188;
+    case 11:
+        return 375;
+    case 12:
+    default:
+        return 750;
+    }
 }
