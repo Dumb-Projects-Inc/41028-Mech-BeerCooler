@@ -1,193 +1,106 @@
 #include <Arduino.h>
-#include "prov.h"
-#include <OneWire.h>
-#include <DallasTemperature.h>
-#include "mqtt.h"
-#include <cstdlib>
-#include <strings.h>
+#include <BeerCoolerApp.h>
 
-#define ONE_WIRE_BUS 4
-
-static constexpr uint8_t PWM_PIN = 10;
-static constexpr uint8_t PWM_DUTY_ACTIVE = 255;
-static constexpr uint8_t PWM_DUTY_IDLE = 0;
-static constexpr unsigned long TEMPERATURE_PUBLISH_INTERVAL_MS = 2000;
-
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire);
-
-static unsigned long lastTemperaturePublishMs = 0;
-static uint8_t currentMotorDuty = PWM_DUTY_IDLE;
-
-static void setMotorDuty(uint8_t duty)
+namespace
 {
-  if (duty == currentMotorDuty)
-  {
-    return;
-  }
+    constexpr uint8_t ONE_WIRE_BUS = 4;
+    constexpr uint8_t STEP_PIN = 20;
+    constexpr uint8_t DIR_PIN = 21;
+    constexpr uint8_t ENABLE_PIN = 22;
 
-  currentMotorDuty = duty;
-  analogWrite(PWM_PIN, currentMotorDuty);
-  Serial.print("Motor PWM duty set to ");
-  Serial.println(currentMotorDuty);
-}
+    constexpr uint32_t STEPS_PER_REVOLUTION = 1000;
+    constexpr float WHEEL_DIAMETER_METERS = 0.14f;
+    constexpr unsigned int STEP_PULSE_WIDTH_US = 1500;
 
-static void runMotor(uint8_t pin, int speed, int durationMs)
-{
-  if (speed < 0 || speed > 255)
-  {
-    Serial.println("Invalid speed value. Must be between 0 and 255.");
-    return;
-  }
+    constexpr unsigned long TEMPERATURE_PUBLISH_INTERVAL_MS = 2000;
+    constexpr unsigned long STATUS_INTERVAL_MS = 5000;
+    constexpr unsigned long MOTOR_DEMO_INTERVAL_MS = 15000;
+    constexpr unsigned long MOTOR_STATE_PUBLISH_INTERVAL_MS = 500;
+    constexpr unsigned long LOOP_DELAY_MS = 1;
 
-  if (durationMs < 0)
-  {
-    Serial.println("Invalid duration value. Must be 0 or greater.");
-    return;
-  }
+    constexpr bool ALLOW_MISSING_TEMPERATURE_SENSOR = true;
+    constexpr bool ENABLE_MOTOR_DEMO = false;
+    constexpr StepMotorCommandUnit MOTOR_DEMO_UNIT = StepMotorCommandUnit::Meters;
+    constexpr float MOTOR_DEMO_AMOUNT = 1.0f;
 
-  if (pin != PWM_PIN)
-  {
-    Serial.println("Ignoring motor command for unexpected pin.");
-    return;
-  }
+    constexpr char STARTUP_MESSAGE[] = "BeerCooler boot-up";
 
-  Serial.println("Running motor...");
-  setMotorDuty(static_cast<uint8_t>(speed));
+    constexpr char WIFI_PROOF_OF_POSSESSION[] = "abcd1234";
+    constexpr char WIFI_SERVICE_NAME[] = "PROV_BeerCooler";
+    constexpr bool WIFI_RESET_PROVISIONED = false;
 
-  if (durationMs > 0)
-  {
-    delay(durationMs);
-    setMotorDuty(PWM_DUTY_IDLE);
-    Serial.println("Motor stopped.");
-  }
-}
+    constexpr char MQTT_BROKER_URI[] = "mqtt://www.maqiatto.com:1883";
+    constexpr char MQTT_USERNAME[] = "tyyinxoxerhanedhac@fxavaj.com";
+    constexpr char MQTT_PASSWORD[] = "DetteErVoresKodeTilEt12TalsProjekt";
+    constexpr char MQTT_TEMPERATURE_TOPIC[] = "tyyinxoxerhanedhac@fxavaj.com/temperature";
+    constexpr char MQTT_COMMAND_TOPIC[] = "tyyinxoxerhanedhac@fxavaj.com/motor";
+    constexpr char MQTT_MOTOR_STATE_TOPIC[] = "tyyinxoxerhanedhac@fxavaj.com/motor/state";
 
-static bool parseMotorCommand(const char *payload, int &speed, int &durationMs)
-{
-  // Expected payload formats:
-  // - "SPEED"          -> numeric speed 0-255, doesnt stop
-  // - "SPEED,DURATION" -> numeric speed 0-255, duration in milliseconds
+    const BeerCoolerAppConfig APP_CONFIG = {
+        .connection =
+            {
+                .wifi =
+                    {
+                        .proofOfPossession = WIFI_PROOF_OF_POSSESSION,
+                        .serviceName = WIFI_SERVICE_NAME,
+                        .serviceKey = nullptr,
+                        .resetProvisioned = WIFI_RESET_PROVISIONED,
+                    },
+                .mqtt =
+                    {
+                        .brokerUri = MQTT_BROKER_URI,
+                        .username = MQTT_USERNAME,
+                        .password = MQTT_PASSWORD,
+                        .temperatureTopic = MQTT_TEMPERATURE_TOPIC,
+                        .commandTopic = MQTT_COMMAND_TOPIC,
+                        .motorStateTopic = MQTT_MOTOR_STATE_TOPIC,
+                    },
+            },
+        .temperature =
+            {
+                .oneWirePin = ONE_WIRE_BUS,
+                .publishIntervalMs = TEMPERATURE_PUBLISH_INTERVAL_MS,
+                .sensorIndex = 0,
+            },
+        .motor =
+            {
+                .stepPin = STEP_PIN,
+                .dirPin = DIR_PIN,
+                .enablePin = ENABLE_PIN,
+                .enableActiveLow = true,
+                .pulseWidthMicros = STEP_PULSE_WIDTH_US,
+                .stepsPerRevolution = STEPS_PER_REVOLUTION,
+                .wheelDiameterMeters = WHEEL_DIAMETER_METERS,
+                .forwardIncreasesDepth = true,
+            },
+        .debug =
+            {
+                .allowMissingTemperatureSensor = ALLOW_MISSING_TEMPERATURE_SENSOR,
+                .enableMotorDemo = ENABLE_MOTOR_DEMO,
+                .motorDemoUnit = MOTOR_DEMO_UNIT,
+                .motorDemoAmount = MOTOR_DEMO_AMOUNT,
+                .motorDemoIntervalMs = MOTOR_DEMO_INTERVAL_MS,
+                .statusIntervalMs = STATUS_INTERVAL_MS,
+                .motorStatePublishIntervalMs = MOTOR_STATE_PUBLISH_INTERVAL_MS,
+            },
+        .startupMessage = STARTUP_MESSAGE,
+    };
 
-  if (payload == nullptr || payload[0] == '\0')
-  {
-    return false;
-  }
-
-  int parsedSpeed = 0;
-  int parsedDuration = 0;
-  int parsedCount = sscanf(payload, "%d,%d", &parsedSpeed, &parsedDuration);
-  if (parsedCount < 1)
-  {
-    return false;
-  }
-
-  if (parsedCount == 1)
-  {
-    parsedDuration = 0;
-  }
-
-  speed = parsedSpeed;
-  durationMs = parsedDuration;
-  return true;
-}
-
-static void handleMqttMessage(const MQTT::Message &message)
-{
-  if (strcmp(message.topic, MQTT::TOPIC_COMMAND) != 0)
-  {
-    Serial.println("Received MQTT message for unrecognized topic:");
-    Serial.print("Topic: ");    Serial.println(message.topic);
-    Serial.print("Payload: ");  Serial.println(message.payload);
-    return;
-  }
-
-  Serial.print("MQTT motor command: ");
-  Serial.println(message.payload);
-
-  int speed = 0;
-  int durationMs = 0;
-  if (!parseMotorCommand(message.payload, speed, durationMs))
-  {
-    Serial.println("Unrecognized motor command.");
-    return;
-  }
-
-  runMotor(PWM_PIN, speed, durationMs);
-}
-
-static void pollMqttCommands()
-{
-  MQTT::Message message = {};
-  while (MQTT::poll(message, 0))
-  {
-    handleMqttMessage(message);
-  }
-}
-
-static void publishTemperatureIfReady(float tempC)
-{
-  if (tempC == DEVICE_DISCONNECTED_C)
-  {
-    Serial.println("Error: Could not read temperature data");
-    return;
-  }
-
-  Serial.print("Temperature: ");
-  Serial.print(tempC);
-  Serial.println(" °C");
-
-  if (MQTT::publishTemperature(tempC))
-  {
-    Serial.println("Temperature published to MQTT");
-  }
-  else
-  {
-    Serial.println("MQTT publish skipped or failed");
-  }
+    BeerCoolerApp app(APP_CONFIG);
 }
 
 void setup()
 {
-  Serial.begin(115200);
-  Serial.println("Hello world!");
+    Serial.begin(115200);
 
-  pinMode(PWM_PIN, OUTPUT);
-  setMotorDuty(PWM_DUTY_IDLE);
-
-  sensors.begin();
-
-  int deviceCount = sensors.getDeviceCount();
-  Serial.print("Found ");
-  Serial.print(deviceCount);
-  Serial.println(" devices.");
-
-  if (deviceCount <= 0)
-  {
-    Serial.println("Fatal: No temperature sensor found. Aborting setup.");
-    abort();
-  }
-
-  initWifi();
-  MQTT::init();
+    if (!app.begin())
+    {
+        abort();
+    }
 }
 
 void loop()
 {
-  pollMqttCommands();
-
-  unsigned long now = millis();
-  if (now - lastTemperaturePublishMs >= TEMPERATURE_PUBLISH_INTERVAL_MS)
-  {
-    lastTemperaturePublishMs = now;
-
-    Serial.print("Requesting temperatures...");
-    sensors.requestTemperatures();
-    Serial.println("DONE");
-
-    float tempC = sensors.getTempCByIndex(0);
-    publishTemperatureIfReady(tempC);
-  }
-
-  delay(10);
+    app.update();
+    delay(LOOP_DELAY_MS);
 }

@@ -1,0 +1,18 @@
+{
+  "name": "DS18B20",
+  "version": "1.0.0",
+  "frameworks": "arduino",
+  "platforms": "*",
+  "dependencies": [
+    {
+      "owner": "milesburton",
+      "name": "DallasTemperature",
+      "version": "^4.0.6"
+    },
+    {
+      "owner": "pstolarz",
+      "name": "OneWireNg",
+      "version": "^0.14"
+    }
+  ]
+}
