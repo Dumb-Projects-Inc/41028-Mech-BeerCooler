@@ -1,140 +1,41 @@
+/*
+  Rui Santos & Sara Santos - Random Nerd Tutorials
+  Complete project details at https://RandomNerdTutorials.com/esp32-stepper-motor-28byj-48-uln2003/
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files.
+  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+  Based on Stepper Motor Control - one revolution by Tom Igoe
+*/
+#include <Stepper.h>
 #include <Arduino.h>
-#include "prov.h"
-#include <OneWire.h>
-#include <DallasTemperature.h>
-#include "mqtt.h"
-#include <cstdlib>
-#include <strings.h>
-#include "stepper.h"
 
-#define ONE_WIRE_BUS 4
+const int stepsPerRevolution = 200; // change this to fit the number of steps per revolution
 
-static constexpr uint8_t PWM_PIN = 10;
-static constexpr unsigned long TEMPERATURE_PUBLISH_INTERVAL_MS = 2000;
+// ULN2003 Motor Driver Pins
+#define IN1 21
+#define IN2 20
+#define IN3 19
+#define IN4 18
 
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire);
-
-static unsigned long lastTemperaturePublishMs = 0;
-static bool parseDistanceCommand(const char *payload, float &distanceMm)
-{
-  // Expected payload format:
-  // - "DISTANCE" -> numeric distance in millimeters; negative values move backward
-
-  if (payload == nullptr || payload[0] == '\0')
-  {
-    return false;
-  }
-
-  float parsedDistance = 0.0f;
-  int parsedCount = sscanf(payload, "%f", &parsedDistance);
-  if (parsedCount != 1)
-  {
-    return false;
-  }
-
-  distanceMm = parsedDistance;
-  return true;
-}
-
-static void handleMqttMessage(const MQTT::Message &message)
-{
-  if (strcmp(message.topic, MQTT::TOPIC_COMMAND) != 0)
-  {
-    Serial.println("Received MQTT message for unrecognized topic:");
-    Serial.print("Topic: ");    Serial.println(message.topic);
-    Serial.print("Payload: ");  Serial.println(message.payload);
-    return;
-  }
-
-  Serial.print("MQTT stepper command: ");
-  Serial.println(message.payload);
-
-  float distanceMm = 0.0f;
-  if (!parseDistanceCommand(message.payload, distanceMm))
-  {
-    Serial.println("Unrecognized stepper command.");
-    return;
-  }
-
-  Stepper::moveDistance(distanceMm);
-  Serial.print("Queued stepper move: ");
-  Serial.print(distanceMm);
-  Serial.println(" mm");
-}
-
-static void pollMqttCommands()
-{
-  MQTT::Message message = {};
-  while (MQTT::poll(message, 0))
-  {
-    handleMqttMessage(message);
-  }
-}
-
-static void publishTemperatureIfReady(float tempC)
-{
-  if (tempC == DEVICE_DISCONNECTED_C)
-  {
-    Serial.println("Error: Could not read temperature data");
-    return;
-  }
-
-  Serial.print("Temperature: ");
-  Serial.print(tempC);
-  Serial.println(" °C");
-
-  if (MQTT::publishTemperature(tempC))
-  {
-    Serial.println("Temperature published to MQTT");
-  }
-  else
-  {
-    Serial.println("MQTT publish skipped or failed");
-  }
-}
+// initialize the stepper library
+Stepper myStepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
 
 void setup()
 {
+  // set the speed at 5 rpm
+  myStepper.setSpeed(5);
+  // initialize the serial port
   Serial.begin(115200);
-  Serial.println("Hello world!");
-
-  sensors.begin();
-
-  int deviceCount = sensors.getDeviceCount();
-  Serial.print("Found ");
-  Serial.print(deviceCount);
-  Serial.println(" devices.");
-
-  if (deviceCount <= 0)
-  {
-    Serial.println("Fatal: No temperature sensor found. Aborting setup.");
-    abort();
-  }
-
-  initWifi();
-  MQTT::init();
-  Stepper::init();
-  Stepper::moveDistance(10.0f);
 }
 
 void loop()
 {
-  pollMqttCommands();
-  Stepper::run();
+  // step one revolution in one direction:
+  Serial.println("clockwise");
+  myStepper.step(stepsPerRevolution);
+  delay(1000);
 
-  unsigned long now = millis();
-  if (now - lastTemperaturePublishMs >= TEMPERATURE_PUBLISH_INTERVAL_MS)
-  {
-    lastTemperaturePublishMs = now;
-
-    Serial.print("Requesting temperatures...");
-    sensors.requestTemperatures();
-    Serial.println("DONE");
-
-    float tempC = sensors.getTempCByIndex(0);
-    publishTemperatureIfReady(tempC);
-  }
-
-  delay(10);
+  // step one revolution in the other direction:
+  Serial.println("counterclockwise");
+  myStepper.step(-stepsPerRevolution);
+  delay(1000);
 }

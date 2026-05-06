@@ -12,9 +12,9 @@ namespace Stepper
     static constexpr uint8_t IN4_PIN = 18;
 
     // Stepper motor parameters
-    static constexpr float MAX_SPEED = 1000.0;        // steps per second
-    static constexpr float ACCELERATION = 500.0;      // steps per second squared
-    static constexpr int STEPS_PER_REVOLUTION = 200;  // NEMA 17 typical value
+    static constexpr float MAX_SPEED = 1000.0;       // steps per second
+    static constexpr float ACCELERATION = 500.0;     // steps per second squared
+    static constexpr int STEPS_PER_REVOLUTION = 200; // NEMA 17 typical value
 
     // Initialize stepper motor pins and AccelStepper object
     static AccelStepper &stepperMotor()
@@ -34,9 +34,9 @@ namespace Stepper
         stepperMotor().setMaxSpeed(MAX_SPEED);
         stepperMotor().setAcceleration(ACCELERATION);
 
-        Serial.println("Stepper motor initialized on pins: IN1=" + String(IN1_PIN) + 
-                       ", IN2=" + String(IN2_PIN) + 
-                       ", IN3=" + String(IN3_PIN) + 
+        Serial.println("Stepper motor initialized on pins: IN1=" + String(IN1_PIN) +
+                       ", IN2=" + String(IN2_PIN) +
+                       ", IN3=" + String(IN3_PIN) +
                        ", IN4=" + String(IN4_PIN));
     }
 
@@ -56,7 +56,7 @@ namespace Stepper
         // Convert mm to steps (adjust factor based on your mechanical setup)
         // Example: 5mm per revolution = 1mm per 40 steps
         // Adjust STEPS_PER_MM based on your gear ratio and lead screw pitch
-        static constexpr float STEPS_PER_MM = 40.0;  // Adjust this value for your system
+        static constexpr float STEPS_PER_MM = 40.0; // Adjust this value for your system
         long steps = (long)(distanceMm * STEPS_PER_MM);
         moveSteps(steps);
     }
