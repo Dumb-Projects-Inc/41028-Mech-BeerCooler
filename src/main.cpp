@@ -10,7 +10,7 @@ namespace
 
     constexpr uint32_t STEPS_PER_REVOLUTION = 1000;
     constexpr float WHEEL_DIAMETER_METERS = 0.14f;
-    constexpr unsigned int STEP_PULSE_WIDTH_US = 1500;
+    constexpr unsigned int STEP_PULSE_WIDTH_US = 7000;
 
     constexpr unsigned long TEMPERATURE_PUBLISH_INTERVAL_MS = 2000;
     constexpr unsigned long STATUS_INTERVAL_MS = 5000;
