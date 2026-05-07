@@ -1,0 +1,7 @@
+{
+  "name": "StepMotor",
+  "version": "0.1.0",
+  "description": "Project-local helper for step/dir stepper drivers",
+  "frameworks": "arduino",
+  "platforms": "*"
+}
